@@ -14,6 +14,7 @@ def displayData(data: list[str], file: str) -> None:
 
 class DatasetAnalysis:
     dataset: pd.DataFrame
+
     def __init__(self, dataset: pd.DataFrame) -> None:
         self.dataset = dataset.reset_index()
 
@@ -29,6 +30,13 @@ class DatasetAnalysis:
     def EmptyRows(self) -> list[str]:
         return [str(self.dataset.isna().sum())]
 
+    def AvgMedStandDevVal(self) -> list[str]:
+        numeric_cols = ['age','ejection fraction','creatinine phosphokinase','ejection fraction.1']
+        temp_dataset = self.dataset[numeric_cols]
+        stats = temp_dataset.agg(['mean', 'median', 'std']).T
+        stats = stats.round(2)
+
+        return [str(stats)]
 
 if __name__ == '__main__':
     analysis = DatasetAnalysis(df)
@@ -37,3 +45,5 @@ if __name__ == '__main__':
     displayData(analysis.ColumnsNTypes(), filename)
     displayData([""], filename)
     displayData(analysis.EmptyRows(), filename)
+    displayData([""], filename)
+    displayData(analysis.AvgMedStandDevVal(), filename)
