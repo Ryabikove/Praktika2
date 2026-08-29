@@ -1,12 +1,15 @@
+import io
 import pandas as pd
 
 df = pd.read_csv('dataset.csv')
+filename = 'report.txt'
 
 
-def displayData(data: str, filename: str) -> None:
-    print(data)
-    with (open(filename, 'a', newline='', encoding='utf-8')) as file:
-        file.write(data + '\n')
+def displayData(data: list[str], file: str) -> None:
+    with (open(file, 'a', newline='', encoding='utf-8')) as file:
+        for line in data:
+            file.write(line + '\n')
+            print(line)
 
 
 class DatasetAnalysis:
@@ -14,10 +17,17 @@ class DatasetAnalysis:
     def __init__(self, dataset: pd.DataFrame) -> None:
         self.dataset = dataset.reset_index()
 
-    def RowsNColumnsNumb(self) -> None:
-        displayData(str(self.dataset.shape), 'report.txt')
+    def RowsNColumnsNumb(self) -> list[str]:
+        return [str(self.dataset.shape)]
+
+    def ColumnsNTypes(self) -> list[str]:
+        buffer = io.StringIO()
+        self.dataset.info(verbose=True, memory_usage=False, buf=buffer)
+
+        return [str(buffer.getvalue())]
 
 
 if __name__ == '__main__':
     analysis = DatasetAnalysis(df)
-    analysis.RowsNColumnsNumb()
+    displayData(analysis.RowsNColumnsNumb(), filename)
+    displayData(analysis.ColumnsNTypes(), filename)
