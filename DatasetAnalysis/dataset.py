@@ -26,8 +26,14 @@ class DatasetAnalysis:
 
         return [str(buffer.getvalue())]
 
+    def EmptyRows(self) -> list[str]:
+        return [str(self.dataset.isna().sum())]
+
 
 if __name__ == '__main__':
     analysis = DatasetAnalysis(df)
     displayData(analysis.RowsNColumnsNumb(), filename)
+    displayData([""], filename)
     displayData(analysis.ColumnsNTypes(), filename)
+    displayData([""], filename)
+    displayData(analysis.EmptyRows(), filename)
