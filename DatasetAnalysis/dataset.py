@@ -38,6 +38,15 @@ class DatasetAnalysis:
 
         return [str(stats)]
 
+    def ListValNFreq(self) -> list[str]:
+        categorical_columns = ['anaemia','diabetes','high bp']
+
+        result=[]
+        for col in categorical_columns:
+            result.append(str(self.dataset[col].value_counts()))
+
+        return result
+
 if __name__ == '__main__':
     analysis = DatasetAnalysis(df)
     displayData(analysis.RowsNColumnsNumb(), filename)
@@ -47,3 +56,5 @@ if __name__ == '__main__':
     displayData(analysis.EmptyRows(), filename)
     displayData([""], filename)
     displayData(analysis.AvgMedStandDevVal(), filename)
+    displayData([""], filename)
+    displayData(analysis.ListValNFreq(), filename)
