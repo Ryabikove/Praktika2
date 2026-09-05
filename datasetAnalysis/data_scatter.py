@@ -27,7 +27,7 @@ class DataScatter:
         self.graph = Figure(dpi=100)
         self.axis = self.graph.add_subplot(111)
 
-        self.axis.plot(self.data_set.iloc[:,self.x].tolist(), self.data_set.iloc[:,self.y].tolist(), marker='o', linestyle='None',
+        self.axis.plot(self.data_set.iloc[:,self.x].tolist(), self.data_set.iloc[:,self.y].tolist(), marker='*', linestyle='None',
                        color='red')
         self.axis.set_xlabel(self.data_set.columns[self.x])
         self.axis.set_ylabel(self.data_set.columns[self.y])
