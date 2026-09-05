@@ -13,8 +13,8 @@ class DataScatter:
     graph : Figure
     axis : Axes
     canvas : FigureCanvasTkAgg
-    x : list
-    y : list
+    x : int = 0
+    y : int = 1
 
     def __init__(self, root : tk.Tk, data_set : pd.DataFrame) -> None:
         self.root = root
@@ -26,14 +26,11 @@ class DataScatter:
 
         self.graph = Figure(dpi=100)
         self.axis = self.graph.add_subplot(111)
-        self.x = self.data_set.iloc[:,0].tolist()
-        self.y = self.data_set.iloc[:,1].tolist()
 
-        self.axis.plot(self.x, self.y, marker='o', linestyle='None', color='red', label='Data')
-        self.axis.set_title("Data Scatter")
-        self.axis.set_xlabel("x")
-        self.axis.set_ylabel("y")
-        self.axis.legend()
+        self.axis.plot(self.data_set.iloc[:,self.x].tolist(), self.data_set.iloc[:,self.y].tolist(), marker='o', linestyle='None',
+                       color='red')
+        self.axis.set_xlabel(self.data_set.columns[self.x])
+        self.axis.set_ylabel(self.data_set.columns[self.y])
         self.axis.grid(True)
 
         self.canvas = FigureCanvasTkAgg(self.graph, self.root)
@@ -46,10 +43,10 @@ class DataScatter:
         self.axis.plot(self.x, self.y)
         self.canvas.draw()
 
-    def set_x(self, x : list) -> None:
+    def set_x(self, x : int) -> None:
         self.x = x
 
-    def set_y(self, y : list) -> None:
+    def set_y(self, y : int) -> None:
         self.y = y
 
 
