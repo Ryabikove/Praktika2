@@ -30,13 +30,15 @@ class DataDraw:
     style : str = 'GnBu'
     painting_mode : bool = False
     square_size : int = 7
+    current_line: Line2D = None
+    last_line: Line2D = None
+
 
     def __init__(self, root : tk.Tk, data_set : pd.DataFrame) -> None:
         self.root = root
         self.data_set = data_set
         self.last_mod_time = os.path.getmtime(dataset.dataset_path)
         self.paint_cids = []
-        self.current_line = None
         self.current_xs = []
         self.current_ys = []
 
@@ -66,7 +68,6 @@ class DataDraw:
         self.draw_enable_b = ttk.Button(self.tool_frame, text = 'Painting mode: OFF', command = lambda: self.enable_painting_mode())
         self.draw_enable_b.pack(side = "left", padx = 5, pady = 5)
 
-
         # Create column buttons
         self.left_frame = tk.Frame(self.root)
         self.bottom_frame = tk.Frame(self.root)
@@ -95,6 +96,8 @@ class DataDraw:
 
         self.root.update_idletasks()
         self.root.minsize(root.winfo_reqwidth(), root.winfo_reqheight())
+
+        self.root.bind('<Control-KeyPress>', self.on_ctrl_key)
 
         self.autoupdate()
 
@@ -180,6 +183,7 @@ class DataDraw:
 
     def on_paint_release(self, event) -> None:
         if event.button == MouseButton.LEFT:
+            self.last_line = self.current_line
             self.current_line = None
 
 
@@ -194,6 +198,21 @@ class DataDraw:
         self.current_xs.append(px / self.graph.bbox.width)
         self.current_ys.append(py / self.graph.bbox.height)
         self.last_px = (px, py)
+
+    def on_ctrl_key(self, event) -> None:
+        if event.keysym in ('z', 'Z', 'Cyrillic_ya', 'Cyrillic_YA'):
+            self.undo_last_stroke()
+
+    def undo_last_stroke(self) -> None:
+        if self.current_line is not None:
+            return
+
+        if self.last_line is None:
+            return
+
+        self.last_line.remove()
+        self.last_line = None
+        self.canvas.draw_idle()
 
     def autoupdate(self) -> None:
         if os.path.exists(dataset.dataset_path):
