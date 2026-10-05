@@ -14,8 +14,6 @@ from matplotlib import colors
 
 import numpy as np
 
-from collections import Counter
-
 import dataset
 
 class DataVisual:
