@@ -34,7 +34,7 @@ class DataVisual:
         self.data_set = data_set
         self.last_mod_time = os.path.getmtime(dataset.dataset_path)
 
-        self.root.title("Data Scatter")
+        self.root.title("Data Visual")
 
         # Create graph
         self.graph = Figure(dpi = 100)
