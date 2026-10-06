@@ -3,20 +3,23 @@ import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
 from tkinter import filedialog
+from tkinter import colorchooser
 
 import pandas as pd
 
 from matplotlib.axes import Axes
+from matplotlib.backend_bases import MouseButton
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 from matplotlib import colormaps
 from matplotlib import colors
 
 import numpy as np
+from matplotlib.lines import Line2D
 
 import dataset
 
-class DataVisual:
+class DataDraw:
     root : tk.Tk
     data_set : pd.DataFrame
     last_mod_time : float
@@ -26,13 +29,24 @@ class DataVisual:
     x : int = 0
     y : int = 1
     style : str = 'GnBu'
+    painting_mode : bool = False
+    line_width : tk.IntVar
+    current_line: Line2D = None
+    last_line: Line2D = None
+    line_color: str = "#163815"
+    
+
 
     def __init__(self, root : tk.Tk, data_set : pd.DataFrame) -> None:
         self.root = root
         self.data_set = data_set
         self.last_mod_time = os.path.getmtime(dataset.dataset_path)
+        self.paint_cids = []
+        self.current_xs = []
+        self.current_ys = []
+        self.line_width = tk.IntVar(value = 7)
 
-        self.root.title("Data Visual")
+        self.root.title("Data Draw")
 
         # Create graph
         self.graph = Figure(dpi = 100)
@@ -44,14 +58,27 @@ class DataVisual:
 
         self.canvas_widget_frame = self.canvas.get_tk_widget()
 
-        # Create cmap menu
-        self.cmap_frame = ttk.Frame(self.root)
+        # Create tool frame
+        self.tool_frame = ttk.Frame(self.root)
 
-        ttk.Label(self.cmap_frame, text="Color maps menu:").pack(side="left", padx=5, pady=5)
-        self.combo = ttk.Combobox(self.cmap_frame, values = sorted(colormaps)[:29], state = 'readonly', width = 30)
+        # Create cmap menu
+        ttk.Label(self.tool_frame, text="Color maps menu:").pack(side = "left", padx = 5, pady = 5)
+        self.combo = ttk.Combobox(self.tool_frame, values = sorted(colormaps)[:29], state = 'readonly', width = 30)
         self.combo.set(self.style)
         self.combo.bind('<<ComboboxSelected>>', self.change_cmap)
-        self.combo.pack(side="left", padx=5, pady=5)
+        self.combo.pack(side = "left", padx = 5, pady = 5)
+
+        # Create draw menu
+        self.draw_enable_b = tk.Button(self.tool_frame, text = 'Painting mode: OFF', command = lambda: self.enable_painting_mode())
+        self.draw_enable_b.pack(side = "left", padx = 5, pady = 5)
+
+        ttk.Label(self.tool_frame, text="Line width:").pack(side = "left", padx = 5, pady = 5)
+        self.width_entry = ttk.Entry(self.tool_frame, textvariable = self.line_width, width = 5)
+        self.width_entry.pack(side = "left", pady = 5)
+
+        ttk.Label(self.tool_frame, text="Line color:").pack(side = "left", padx = 5, pady = 5)
+        self.color_button = tk.Button(self.tool_frame, text = '', command = self.change_line_color, bg = self.line_color, width = 3)
+        self.color_button.pack(side = "left", padx = 5, pady = 5)
 
 
         # Create column buttons
@@ -71,7 +98,7 @@ class DataVisual:
         save_button.pack(side = 'left', padx = 5, pady = 5)
 
         # Locate each frame
-        self.cmap_frame.grid(row = 0, column = 1, sticky = 'nw')
+        self.tool_frame.grid(row = 0, column = 1, sticky ='nw')
         self.left_frame.grid(row = 1, column = 0, sticky = 'ns')
         self.canvas_widget_frame.grid(row = 1, column = 1, sticky ='nsew')
         self.bottom_frame.grid(row = 2, column = 1, sticky = 'ew')
@@ -83,15 +110,130 @@ class DataVisual:
         self.root.update_idletasks()
         self.root.minsize(root.winfo_reqwidth(), root.winfo_reqheight())
 
+        self.root.bind('<Control-KeyPress>', self.on_ctrl_key)
+
         self.autoupdate()
 
     def x_column_but(self, x : int) -> None:
+        self.disable_painting_mode()
         self.set_x(x)
         self.update_graph()
 
     def y_column_but(self, y : int) -> None:
+        self.disable_painting_mode()
         self.set_y(y)
         self.update_graph()
+
+    def change_line_color(self) -> None:
+        rgb, hex_color = colorchooser.askcolor(color = self.line_color, title = "Color map")
+        if hex_color is None:
+            return
+
+        self.line_color = hex_color
+        self.color_button.config(bg = self.line_color)
+
+    def disable_painting_mode(self) -> None:
+        if not self.painting_mode:
+            return
+
+        self.painting_mode = False
+        for cid in self.paint_cids:
+            self.canvas.mpl_disconnect(cid)
+
+        self.current_line = None
+        self.draw_enable_b.config(text = 'Painting mode: OFF')
+        self.canvas_widget_frame.config(cursor = '')
+
+    def enable_painting_mode(self) -> None:
+        if self.painting_mode:
+            self.disable_painting_mode()
+            return
+
+        self.painting_mode = True
+        self.draw_enable_b.config(text = 'Painting mode: ON')
+        self.canvas_widget_frame.config(cursor = 'pencil')
+
+        self.paint_cids = [
+            self.canvas.mpl_connect('button_press_event', self.on_paint_press),
+            self.canvas.mpl_connect('button_release_event', self.on_paint_release),
+            self.canvas.mpl_connect('motion_notify_event', self.on_paint_motion)
+
+        ]
+
+    def on_paint_press(self, event) -> None:
+        if event.button == MouseButton.RIGHT:
+            self.disable_painting_mode()
+            return
+
+        if event.button != MouseButton.LEFT:
+            return
+
+        self.current_xs, self.current_ys = [], []
+        self._add_point(*self._event_to_px(event))
+
+        self.current_line = Line2D(
+            self.current_xs, self.current_ys,
+            transform = self.graph.transFigure,
+            linestyle = 'None',
+            marker = 's',
+            markersize = self.line_width.get(),
+            markeredgewidth = 0,
+            color = self.line_color
+        )
+        self.graph.add_artist(self.current_line)
+        self.canvas.draw_idle()
+
+    def on_paint_motion(self, event) -> None:
+        if self.current_line is None:
+            return
+
+        px, py = self._event_to_px(event)
+        lx, ly = self.last_px
+        step = self._square_step_px()
+        dist = np.hypot(px-lx, py-ly)
+
+        if dist < step:
+            return
+
+        for i in range(1, int(dist // step) + 1):
+            t = i * step / dist
+            self._add_point(lx + (px - lx) * t, ly + (py - ly) * t)
+
+        self.current_line.set_data(self.current_xs, self.current_ys)
+        self.canvas.draw_idle()
+
+    def on_paint_release(self, event) -> None:
+        if event.button == MouseButton.LEFT:
+            self.last_line = self.current_line
+            self.current_line = None
+
+
+    def _event_to_px(self, event) -> tuple[float, float]:
+        w, h = self.graph.bbox.width, self.graph.bbox.height
+        return min(max(event.x, 0.0), w), min(max(event.y, 0.0), h)
+
+    def _square_step_px(self) -> float:
+        return self.line_width.get() * self.graph.dpi / 72
+
+    def _add_point(self, px: float, py: float) -> None:
+        self.current_xs.append(px / self.graph.bbox.width)
+        self.current_ys.append(py / self.graph.bbox.height)
+        self.last_px = (px, py)
+
+    def on_ctrl_key(self, event) -> None:
+        if event.keysym in ('z', 'Z', 'Cyrillic_ya', 'Cyrillic_YA'):
+            self.undo_last_stroke()
+
+    def undo_last_stroke(self) -> None:
+        if self.current_line is not None:
+            return
+
+        if self.last_line is None:
+            return
+
+        self.last_line.remove()
+        self.last_line = None
+        self.canvas.draw_idle()
 
     def autoupdate(self) -> None:
         if os.path.exists(dataset.dataset_path):
@@ -212,7 +354,7 @@ class DataVisual:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = DataVisual(root, dataset.df)
+    app = DataDraw(root, dataset.df)
     try:
         root.mainloop()
     except KeyboardInterrupt:
