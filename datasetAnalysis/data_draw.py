@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
 from tkinter import filedialog
+from tkinter import colorchooser
 
 import pandas as pd
 
@@ -29,9 +30,11 @@ class DataDraw:
     y : int = 1
     style : str = 'GnBu'
     painting_mode : bool = False
-    square_size : int = 7
+    line_width : tk.IntVar
     current_line: Line2D = None
     last_line: Line2D = None
+    line_color: str = "#163815"
+    
 
 
     def __init__(self, root : tk.Tk, data_set : pd.DataFrame) -> None:
@@ -41,6 +44,7 @@ class DataDraw:
         self.paint_cids = []
         self.current_xs = []
         self.current_ys = []
+        self.line_width = tk.IntVar(value = 7)
 
         self.root.title("Data Draw")
 
@@ -65,8 +69,17 @@ class DataDraw:
         self.combo.pack(side = "left", padx = 5, pady = 5)
 
         # Create draw menu
-        self.draw_enable_b = ttk.Button(self.tool_frame, text = 'Painting mode: OFF', command = lambda: self.enable_painting_mode())
+        self.draw_enable_b = tk.Button(self.tool_frame, text = 'Painting mode: OFF', command = lambda: self.enable_painting_mode())
         self.draw_enable_b.pack(side = "left", padx = 5, pady = 5)
+
+        ttk.Label(self.tool_frame, text="Line width:").pack(side = "left", padx = 5, pady = 5)
+        self.width_entry = ttk.Entry(self.tool_frame, textvariable = self.line_width, width = 5)
+        self.width_entry.pack(side = "left", pady = 5)
+
+        ttk.Label(self.tool_frame, text="Line color:").pack(side = "left", padx = 5, pady = 5)
+        self.color_button = tk.Button(self.tool_frame, text = '', command = self.change_line_color, bg = self.line_color, width = 3)
+        self.color_button.pack(side = "left", padx = 5, pady = 5)
+
 
         # Create column buttons
         self.left_frame = tk.Frame(self.root)
@@ -110,6 +123,14 @@ class DataDraw:
         self.disable_painting_mode()
         self.set_y(y)
         self.update_graph()
+
+    def change_line_color(self) -> None:
+        rgb, hex_color = colorchooser.askcolor(color = self.line_color, title = "Color map")
+        if hex_color is None:
+            return
+
+        self.line_color = hex_color
+        self.color_button.config(bg = self.line_color)
 
     def disable_painting_mode(self) -> None:
         if not self.painting_mode:
@@ -155,9 +176,9 @@ class DataDraw:
             transform = self.graph.transFigure,
             linestyle = 'None',
             marker = 's',
-            markersize = self.square_size,
+            markersize = self.line_width.get(),
             markeredgewidth = 0,
-            color = 'red'
+            color = self.line_color
         )
         self.graph.add_artist(self.current_line)
         self.canvas.draw_idle()
@@ -192,7 +213,7 @@ class DataDraw:
         return min(max(event.x, 0.0), w), min(max(event.y, 0.0), h)
 
     def _square_step_px(self) -> float:
-        return self.square_size * self.graph.dpi / 72
+        return self.line_width.get() * self.graph.dpi / 72
 
     def _add_point(self, px: float, py: float) -> None:
         self.current_xs.append(px / self.graph.bbox.width)
